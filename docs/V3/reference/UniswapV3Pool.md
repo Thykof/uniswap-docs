@@ -5,41 +5,42 @@
 ### _blockTimestamp
 ```solidity
   function _blockTimestamp(
-  ) internal returns (uint32)
+  ) internal view virtual returns (uint32)
 ```
 
 Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
 
 
-### secondsInside
+### snapshotCumulativesInside
 ```solidity
-  function secondsInside(
+  function snapshotCumulativesInside(
     int24 tickLower,
     int24 tickUpper
-  ) external returns (uint32)
+  ) external view override noDelegateCall returns (int56 tickCumulativeInside, uint160 secondsPerLiquidityInsideX128, uint32 secondsInside)
 ```
-Returns a relative timestamp value representing how long, in seconds, the pool has spent between
-tickLower and tickUpper
+Returns a snapshot of the tick cumulative, seconds per liquidity and seconds inside a tick range
 
-This timestamp is strictly relative. To get a useful elapsed time (i.e., duration) value, the value returned
-by this method should be checkpointed externally after a position is minted, and again before a position is
-burned. Thus the external contract must control the lifecycle of the position.
+Snapshots must only be compared to other snapshots, taken over a period for which a position existed.
+I.e., snapshots cannot be compared if a position is not held for the entire period between when the first
+snapshot is taken and the second snapshot is taken.
 
 #### Parameters:
 | Name | Type | Description                                                          |
 | :--- | :--- | :------------------------------------------------------------------- |
-|`tickLower` | int24 | The lower tick of the range for which to get the seconds inside
-|`tickUpper` | int24 | The upper tick of the range for which to get the seconds inside
+|`tickLower` | int24 | The lower tick of the range
+|`tickUpper` | int24 | The upper tick of the range
 
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`A`| int24 | relative timestamp for how long the pool spent in the tick range
+|`tickCumulativeInside`| int56 | The snapshot of the tick accumulator for the range
+|`secondsPerLiquidityInsideX128`| uint160 | The snapshot of seconds per liquidity for the range
+|`secondsInside`| uint32 | The snapshot of seconds per liquidity for the range
 ### observe
 ```solidity
   function observe(
     uint32[] secondsAgos
-  ) external returns (int56[] tickCumulatives, uint160[] liquidityCumulatives)
+  ) external view override noDelegateCall returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)
 ```
 Returns the cumulative tick and liquidity as of each timestamp `secondsAgo` from the current block timestamp
 
@@ -57,14 +58,14 @@ log base sqrt(1.0001) of token1 / token0. The TickMath library can be used to go
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`tickCumulatives`| uint32[] | Cumulative tick values as of each `secondsAgos` from the current block timestamp
-|`liquidityCumulatives`|  | Cumulative liquidity-in-range value as of each `secondsAgos` from the current block
+|`tickCumulatives`| int56[] | Cumulative tick values as of each `secondsAgos` from the current block timestamp
+|`secondsPerLiquidityCumulativeX128s`| uint160[] | Cumulative seconds per liquidity-in-range value as of each `secondsAgos` from the current block
 timestamp
 ### increaseObservationCardinalityNext
 ```solidity
   function increaseObservationCardinalityNext(
     uint16 observationCardinalityNext
-  ) external
+  ) external override lock noDelegateCall
 ```
 Increase the maximum number of price and liquidity observations that this pool will store
 
@@ -80,7 +81,7 @@ the input observationCardinalityNext.
 ```solidity
   function initialize(
     uint160 sqrtPriceX96
-  ) external
+  ) external override
 ```
 Sets the initial price for the pool
 
@@ -98,7 +99,7 @@ not locked because it initializes unlocked
     int24 tickUpper,
     uint128 amount,
     bytes data
-  ) external returns (uint256 amount0, uint256 amount1)
+  ) external override lock returns (uint256 amount0, uint256 amount1)
 ```
 Adds liquidity for the given recipient/tickLower/tickUpper position
 
@@ -115,8 +116,8 @@ noDelegateCall is applied indirectly via _modifyPosition
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`amount0`| address | The amount of token0 that was paid to mint the given amount of liquidity. Matches the value in the callback
-|`amount1`| int24 | The amount of token1 that was paid to mint the given amount of liquidity. Matches the value in the callback
+|`amount0`| uint256 | The amount of token0 that was paid to mint the given amount of liquidity. Matches the value in the callback
+|`amount1`| uint256 | The amount of token1 that was paid to mint the given amount of liquidity. Matches the value in the callback
 ### collect
 ```solidity
   function collect(
@@ -125,7 +126,7 @@ noDelegateCall is applied indirectly via _modifyPosition
     int24 tickUpper,
     uint128 amount0Requested,
     uint128 amount1Requested
-  ) external returns (uint128 amount0, uint128 amount1)
+  ) external override lock returns (uint128 amount0, uint128 amount1)
 ```
 Collects tokens owed to a position
 
@@ -146,15 +147,15 @@ actual tokens owed, e.g. type(uint128).max. Tokens owed may be from accumulated 
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`amount0`| address | The amount of fees collected in token0
-|`amount1`| int24 | The amount of fees collected in token1
+|`amount0`| uint128 | The amount of fees collected in token0
+|`amount1`| uint128 | The amount of fees collected in token1
 ### burn
 ```solidity
   function burn(
     int24 tickLower,
     int24 tickUpper,
     uint128 amount
-  ) external returns (uint256 amount0, uint256 amount1)
+  ) external override lock returns (uint256 amount0, uint256 amount1)
 ```
 Burn liquidity from the sender and account tokens owed for the liquidity to the position
 
@@ -169,8 +170,8 @@ noDelegateCall is applied indirectly via _modifyPosition
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`amount0`| int24 | The amount of token0 sent to the recipient
-|`amount1`| int24 | The amount of token1 sent to the recipient
+|`amount0`| uint256 | The amount of token0 sent to the recipient
+|`amount1`| uint256 | The amount of token1 sent to the recipient
 ### swap
 ```solidity
   function swap(
@@ -179,7 +180,7 @@ noDelegateCall is applied indirectly via _modifyPosition
     int256 amountSpecified,
     uint160 sqrtPriceLimitX96,
     bytes data
-  ) external returns (int256 amount0, int256 amount1)
+  ) external override noDelegateCall returns (int256 amount0, int256 amount1)
 ```
 Swap token0 for token1, or token1 for token0
 
@@ -198,8 +199,8 @@ value after the swap. If one for zero, the price cannot be greater than this val
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`amount0`| address | The delta of the balance of token0 of the pool, exact when negative, minimum when positive
-|`amount1`| bool | The delta of the balance of token1 of the pool, exact when negative, minimum when positive
+|`amount0`| int256 | The delta of the balance of token0 of the pool, exact when negative, minimum when positive
+|`amount1`| int256 | The delta of the balance of token1 of the pool, exact when negative, minimum when positive
 ### flash
 ```solidity
   function flash(
@@ -207,7 +208,7 @@ value after the swap. If one for zero, the price cannot be greater than this val
     uint256 amount0,
     uint256 amount1,
     bytes data
-  ) external
+  ) external override lock noDelegateCall
 ```
 Receive token0 and/or token1 and pay it back, plus a fee, in the callback
 
@@ -228,7 +229,7 @@ with 0 amount{0,1} and sending the donation amount(s) from the callback
   function setFeeProtocol(
     uint8 feeProtocol0,
     uint8 feeProtocol1
-  ) external
+  ) external override lock onlyFactoryOwner
 ```
 Set the denominator of the protocol's % share of the fees
 
@@ -245,7 +246,7 @@ Set the denominator of the protocol's % share of the fees
     address recipient,
     uint128 amount0Requested,
     uint128 amount1Requested
-  ) external returns (uint128 amount0, uint128 amount1)
+  ) external override lock onlyFactoryOwner returns (uint128 amount0, uint128 amount1)
 ```
 Collect the protocol fee accrued to the pool
 
@@ -260,5 +261,5 @@ Collect the protocol fee accrued to the pool
 #### Return Values:
 | Name                           | Type          | Description                                                                  |
 | :----------------------------- | :------------ | :--------------------------------------------------------------------------- |
-|`amount0`| address | The protocol fee collected in token0
+|`amount0`| uint128 | The protocol fee collected in token0
 |`amount1`| uint128 | The protocol fee collected in token1
