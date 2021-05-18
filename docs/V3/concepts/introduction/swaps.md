@@ -5,7 +5,7 @@ title: Swaps
 
 ## Introduction 
 
-Swaps are the most common way of interacting with the Uniswap protocol. For end-users, swapping is straightforward: a user selects an ERC-20 token that they own and a token they would like to trade it for. Executing a swap sells the currently owned tokens for the proportional[1] amount of the tokens desired, minus the swap fee, which is awarded to liquidity providers[^2]. Swapping with the Uniswap protocol is a permissionless process.
+Swaps are the most common way of interacting with the Uniswap protocol. For end-users, swapping is straightforward: a user selects an ERC-20 token that they own and a token they would like to trade it for. Executing a swap sells the currently owned tokens for the proportional[^1] amount of the tokens desired, minus the swap fee, which is awarded to liquidity providers[^2]. Swapping with the Uniswap protocol is a permissionless process.
 
 > note: Using web interfaces (websites) to swap via the Uniswap protocol can introduce additional permission structures, and may result in different execution behavior compared to using the Uniswap protocol directly. To learn more about the differences between the protocol and a web interface, see What is Uniswap.
 
